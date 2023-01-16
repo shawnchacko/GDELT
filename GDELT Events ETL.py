@@ -33,7 +33,7 @@ import datetime
 # COMMAND ----------
 
 file_path = "/dbfs/tmp/"
-file_name = "events_bronze_"
+file_name_ = "events_"
 writer_date = datetime.datetime.now().strftime('%Y-%m-%d')
 writer_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %X')
 
@@ -61,20 +61,25 @@ events_bronze['extraction_date'] = writer_timestamp
 
 # COMMAND ----------
 
-# loading the bronze parquet file into DBFS
-events_bronze.to_parquet(f'{file_path}bronze_data/{file_name}{writer_date}')
+# loading the bronze parquet file into Azure Storage
+events_bronze.to_parquet(f'{file_path}bronze_data/{file_name}bronze_{writer_date}')
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC --Setting up the gdelt database
+# MAGIC --referencing the gdelt database
 # MAGIC use gdelt_events;
 
 # COMMAND ----------
 
 # Creating spark datframe and the bronze table
 events_bronze_sparkDF=spark.createDataFrame(events_bronze)
-events_bronze_sparkDF.write.saveAsTable("events_bronze")
+
+# Saves spark dateframe into bronze table first time
+#events_bronze_sparkDF.write.saveAsTable("events_bronze")
+
+# Saves spark dateframe into bronze table in subsequent run
+events_bronze_sparkDF.write.mode('append').saveAsTable("events_bronze")
 
 # COMMAND ----------
 
@@ -98,19 +103,31 @@ sanctions_events_silver=pd_sanctions_events[pd_sanctions_events['cameocodedescri
 
 # COMMAND ----------
 
-# This section converts pandas datafrma eto geopandas dataframe
+# This section converts pandas dataframe into geopandas dataframe
 #sanctions_events_silver_geo = gpd.GeoDataFrame(pd_sanctions_events_filter, geometry=gpd.points_from_xy(pd_sanctions_events_filter.actiongeolong, pd_sanctions_events_filter.actiongeolat))
 
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC --referencing the gdelt database
 # MAGIC use gdelt_events;
 
 # COMMAND ----------
 
+# Converts pandas dataframe into spark dataframe
 sanctions_events_silver_sparkDF=spark.createDataFrame(sanctions_events_silver)
-sanctions_events_silver_sparkDF.write.saveAsTable("sanctions_events_silver")
 
+# Saves spark dateframe into silver table first time
+#sanctions_events_silver_sparkDF.write.saveAsTable("sanctions_events_silver")
+
+# Saves spark dateframe into silver table in subsequent runs
+sanctions_events_silver_sparkDF.write.mode('append').saveAsTable("sanctions_events_silver")
+
+
+# COMMAND ----------
+
+# loading the silver sanctions data as parquet file into Azure Storage
+sanctions_events_silver.to_parquet(f'{file_path}silver_data/sanctions_{file_name}silver_{writer_date}')
 
 # COMMAND ----------
 
@@ -119,13 +136,25 @@ sanctions_events_silver_sparkDF.write.saveAsTable("sanctions_events_silver")
 
 # COMMAND ----------
 
-pd_social_unrest_events_silver=events_bronze[['sqldate','monthyear', 'eventrootcode', 'goldsteinscale', 'nummentions','avgtone', 'actiongeocountrycode', 'actiongeolat', 'actiongeolong','extraction_date']]
+pd_social_unrest_events_silver_temp=events_bronze[['sqldate','monthyear', 'eventrootcode', 'goldsteinscale', 'nummentions','avgtone', 'actiongeocountrycode', 'actiongeolat', 'actiongeolong','extraction_date']]
+
+# filtering the column with required filter
+pd_social_unrest_events_silver=pd_social_unrest_events_silver_temp[pd_social_unrest_events_silver_temp['cameocodedescription'].str.contains("social unrest")]
 
 # COMMAND ----------
 
+# Creating spark dataframe to save into table
 social_unrest_events_silver_sparkDF=spark.createDataFrame(pd_social_unrest_events_silver)
 
+# COMMAND ----------
+
+# Saves spark dateframe into silver table first time
+# social_unrest_events_silver_sparkDF.write.saveAsTable("social_unrest_events_silver")
+
+# Saves spark dateframe into silver table subsequent time
+social_unrest_events_silver_sparkDF.write.mode('append').saveAsTable("social_unrest_events_silver")
 
 # COMMAND ----------
 
-social_unrest_events_silver_sparkDF.write.mode('append').saveAsTable("social_unrest_events_silver")
+# loading the silver sanctions data as parquet file into Azure Storage
+social_unrest_events_silver.to_parquet(f'{file_path}silver_data/social_unrest_{file_name}silver_{writer_date}')

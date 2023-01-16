@@ -53,3 +53,16 @@ events_15min_bronze['extraction_date'] = File_timestamp
 
 #loading the data as parquet file into bronze folder 
 events_15min_bronze.to_parquet(f'{file_path}bronze_data/bronze_events_15min/{file_name}{File_timestamp}')
+
+# COMMAND ----------
+
+f'{file_path}bronze_data/bronze_events_15min/{file_name}{File_timestamp}'
+
+# COMMAND ----------
+
+# MAGIC %sh
+# MAGIC ls /dbfs/tmp/bronze_data/bronze_events_15min/
+
+# COMMAND ----------
+
+
